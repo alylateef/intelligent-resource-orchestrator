@@ -1,36 +1,45 @@
-# AI SRE Copilot — Resume-Grade Agentic AI Project
+# RepoPilot — AI Codebase Onboarding Agent
 
-An autonomous incident-investigation agent: when an alert fires, it investigates logs, metrics, and deploy history, correlates causes, and produces a root-cause report with a suggested fix — with a live agent-trace dashboard.
+Chat with any real public GitHub repo: it clones, chunks, and embeds the code into Chroma, then a LangGraph agent answers questions ("where is auth handled?", "what breaks if I change this function?") with file/line citations. Groq powers fast multi-step reasoning. No dummy data — it works on real repos the user picks.
 
-## What we build in this workspace (React + TypeScript, TanStack Start)
+## Architecture (two repos)
 
-1. **Dashboard home (`/`)** — fleet/service health overview, active incidents list, alert feed.
-2. **Incident detail (`/incidents/$id`)** — the star screen:
-   - Live streaming agent trace (planner → log investigator → metrics investigator → deploy correlator → report writer), rendered as a step timeline with tool calls.
-   - Final root-cause report with evidence citations and suggested remediation.
-   - Approve/reject human-in-the-loop controls.
-3. **Services (`/services`)** — service registry with health, recent deploys, error rates (charts).
-4. **Reports (`/reports`)** — archive of generated postmortems, searchable.
-5. **Simulated backend layer** — a typed mock API module that streams realistic agent events (SSE-like async generator), so the whole demo works end-to-end without the Python backend. Swapping in the real FastAPI later means changing one data-access module.
-6. **Design** — dark, observability-tool aesthetic (think Datadog/LangSmith): dense data, monospace accents for logs/traces, status colors via semantic tokens, charts via recharts.
+```text
+React/TS frontend (this workspace)  ──REST/SSE──▶  FastAPI backend (separate repo)
+                                                      │
+                              LangGraph agent (triage → retrieve → reason → answer)
+                                                      │
+                          Groq API (llama-3.3-70b) · Chroma (vectors) · Postgres (repos, chats, citations) · Redis (job queue for indexing) · Docker Compose
+```
 
-## Backend blueprint (delivered as docs + code skeleton, runs outside this workspace)
+## Frontend — built in this workspace (TanStack Start + React 19 + Tailwind v4 + shadcn)
 
-- `ARCHITECTURE.md` + a `backend/` skeleton you run locally with Docker Compose:
-  - **FastAPI** — REST + SSE streaming endpoint for agent runs.
-  - **LangGraph** — multi-agent graph: supervisor, log-analysis agent, metrics agent, deploy-correlation agent, report writer; human-in-the-loop interrupt before publishing a report.
-  - **LangSmith** — tracing + evals on report quality.
-  - **Postgres** — incidents, services, deploys, reports (pgvector for log-embedding search).
-  - **Redis** — task queue + caching of investigation results.
-  - **Docker Compose** — one-command local stack.
-- The frontend's data module documents the exact API contract the FastAPI app must implement.
+1. **Home (`/`)** — paste a GitHub URL → kicks off indexing; list of indexed repos with status (indexing/ready/failed), file counts, last indexed time.
+2. **Chat (`/repo/$id`)** — the star screen:
+   - Streaming chat answers with inline file/line citations; click a citation → code viewer with highlighted lines.
+   - Agent trace panel: shows each LangGraph step + tool calls (vector search, file read, dependency lookup) as they stream.
+   - Suggested questions per repo.
+3. **Repo overview (`/repo/$id/overview`)** — auto-generated architecture summary, directory tree, key modules, dependency stats.
+4. **Design** — dark IDE-inspired aesthetic: monospace code, syntax highlighting, semantic status colors.
+5. **Data layer** — a typed API client module pointing at the FastAPI base URL (env var `VITE_API_URL`); includes a dev-mode simulated stream so the UI is demoable before the backend is connected. Real Groq/Chroma data flows once the backend runs.
+
+## Backend blueprint — delivered as a ready-to-run skeleton (`backend/` folder + docs)
+
+- **FastAPI**: REST endpoints (index repo, list repos, chat) + SSE streaming for agent runs.
+- **LangChain + LangGraph**: agent graph — query triage → Chroma retrieval tool → file/AST tools → answer composer with citations; human-in-the-loop optional for destructive answers.
+- **Groq**: `llama-3.3-70b-versatile` via `langchain-groq` for reasoning; Groq's speed makes multi-step agent loops feel real-time.
+- **Chroma**: per-repo collections, code-aware chunking (by function/class), embeddings via a free local model (sentence-transformers) so no extra API cost.
+- **Postgres**: repos, conversations, messages, citations.
+- **Redis + Celery (or arq)**: background indexing jobs (clone → chunk → embed).
+- **Docker Compose**: one command spins up api + worker + postgres + redis + chroma.
+- **LangSmith**: tracing on every agent run; eval dataset for answer quality.
+- Requires a free Groq API key (console.groq.com) — user adds it to `.env`.
 
 ## Technical notes
 
-- Stack here is fixed: TanStack Start + React 19 + Tailwind v4 + shadcn. No Python runs in this workspace; the backend is a separate repo you present alongside.
-- Streaming simulated with async generators client-side; real version uses SSE from FastAPI.
-- Seeded with realistic demo data: 4 services, ~12 incidents, deploy history, synthetic logs/metrics.
+- This workspace builds only the frontend; Python backend is a separate folder/repo you run locally with Docker. The frontend works standalone in demo mode and switches to the real backend via one env var.
+- Every route gets its own `head()` metadata.
 
 ## Resume framing
 
-"Built an autonomous SRE copilot: LangGraph multi-agent system that investigates production incidents across logs/metrics/deploys and drafts root-cause reports with human-in-the-loop approval. FastAPI + SSE streaming, Postgres/pgvector, Redis queue, Docker; React/TypeScript observability dashboard; LangSmith tracing and evals."
+"Built RepoPilot: a LangGraph agent that onboards engineers onto any codebase — clones and embeds repos into Chroma (code-aware chunking), answers questions with file/line citations over Groq-hosted Llama 3.3 70B, FastAPI + SSE streaming, Redis job queue, Postgres, Docker Compose, LangSmith tracing/evals, React/TypeScript IDE-style frontend."
