@@ -7,7 +7,7 @@ import type { AgentRun, Match, MatchStatus, PipelineStats, Profile } from "./typ
  * Set VITE_API_URL (e.g. http://localhost:8000) to use live data.
  * Without it, the app runs in demo mode on in-memory seed data.
  */
-export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
+export const API_URL = (import.meta.env["VITE_API_URL"] as string | undefined)?.replace(/\/$/, "");
 export const isDemo = !API_URL;
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
@@ -35,7 +35,7 @@ function computeStats(list: Match[]): PipelineStats {
     newToday: list.filter((m) => Date.now() - new Date(m.job.postedAt).getTime() < 86400_000).length,
     avgScore: Math.round(list.reduce((s, m) => s + m.score, 0) / Math.max(list.length, 1)),
     scoreDistribution: buckets.map((range) => {
-      const [lo, hi] = range.split("-").map(Number);
+      const [lo = 0, hi = 100] = range.split("-").map(Number);
       return { range, count: list.filter((m) => m.score >= lo && m.score <= hi).length };
     }),
   };
@@ -90,7 +90,7 @@ export const api = {
   /** Streams a freshly drafted proposal token-by-token (SSE in live mode). */
   async *draftProposal(id: string, signal?: AbortSignal): AsyncGenerator<string> {
     if (!isDemo) {
-      const res = await fetch(`${API_URL}/api/matches/${id}/draft`, { method: "POST", signal });
+      const res = await fetch(`${API_URL}/api/matches/${id}/draft`, { method: "POST", signal: signal ?? null });
       if (!res.ok || !res.body) throw new Error(`API ${res.status}`);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -126,7 +126,7 @@ export const api = {
 };
 
 function demoDraft(m: Match) {
-  const first = m.job.client.split(/[—(:]/)[0].replace("HN", "").trim();
+  const first = (m.job.client.split(/[—(:]/)[0] ?? "").replace("HN", "").trim();
   return `Hi ${first} team,
 
 I read your post for "${m.job.title}" and it lines up closely with what I build: ${m.skillsOverlap.slice(0, 4).join(", ")}.
