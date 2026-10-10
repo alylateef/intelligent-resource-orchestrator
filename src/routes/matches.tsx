@@ -74,7 +74,7 @@ function MatchesPage() {
           <span className="font-mono text-xs text-muted-foreground">min score</span>
           <Slider
             value={[minScore]}
-            onValueChange={([v]) => setMinScore(v)}
+            onValueChange={([v]) => setMinScore(v ?? 60)}
             min={50}
             max={95}
             step={5}

@@ -29,7 +29,7 @@ export interface Match {
   missingSkills: string[];
   reasoning: string;
   status: MatchStatus;
-  proposal?: Proposal;
+  proposal?: Proposal | undefined;
 }
 
 export interface Profile {
