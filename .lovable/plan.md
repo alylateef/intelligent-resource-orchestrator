@@ -1,45 +1,45 @@
-# RepoPilot — AI Codebase Onboarding Agent
+# GigRadar — Autonomous Freelance Job Hunter
 
-Chat with any real public GitHub repo: it clones, chunks, and embeds the code into Chroma, then a LangGraph agent answers questions ("where is auth handled?", "what breaks if I change this function?") with file/line citations. Groq powers fast multi-step reasoning. No dummy data — it works on real repos the user picks.
+An agent that continuously scans real job boards (RemoteOK, WeWorkRemotely, Upwork RSS, HN "Who is hiring"), matches postings against your profile, scores fit, and drafts personalized proposals you approve with one click. Real data, no dummy content.
 
 ## Architecture (two repos)
 
 ```text
-React/TS frontend (this workspace)  ──REST/SSE──▶  FastAPI backend (separate repo)
+React/TS frontend (this workspace) ──REST/SSE──▶ FastAPI backend (separate repo)
                                                       │
-                              LangGraph agent (triage → retrieve → reason → answer)
+              LangGraph pipeline: scrape → dedupe → embed/match (Chroma) → score → draft proposal → human approve
                                                       │
-                          Groq API (llama-3.3-70b) · Chroma (vectors) · Postgres (repos, chats, citations) · Redis (job queue for indexing) · Docker Compose
+              Groq (llama-3.3-70b reasoning + Whisper if voice notes) · Chroma (job + profile vectors)
+              Postgres (jobs, matches, proposals, profile) · Redis (scheduler/queue) · Docker Compose
 ```
 
 ## Frontend — built in this workspace (TanStack Start + React 19 + Tailwind v4 + shadcn)
 
-1. **Home (`/`)** — paste a GitHub URL → kicks off indexing; list of indexed repos with status (indexing/ready/failed), file counts, last indexed time.
-2. **Chat (`/repo/$id`)** — the star screen:
-   - Streaming chat answers with inline file/line citations; click a citation → code viewer with highlighted lines.
-   - Agent trace panel: shows each LangGraph step + tool calls (vector search, file read, dependency lookup) as they stream.
-   - Suggested questions per repo.
-3. **Repo overview (`/repo/$id/overview`)** — auto-generated architecture summary, directory tree, key modules, dependency stats.
-4. **Design** — dark IDE-inspired aesthetic: monospace code, syntax highlighting, semantic status colors.
-5. **Data layer** — a typed API client module pointing at the FastAPI base URL (env var `VITE_API_URL`); includes a dev-mode simulated stream so the UI is demoable before the backend is connected. Real Groq/Chroma data flows once the backend runs.
+1. **Dashboard (`/`)** — new matches today, fit-score distribution, pipeline stats (found → matched → drafted → approved → sent), recent high-score matches.
+2. **Matches (`/matches`)** — filterable feed of real job postings with fit score, matched skills, salary/ budget, source. Sort by score, filter by source/min score.
+3. **Match detail (`/matches/$id`)** — full posting, why-it-matched breakdown (skills overlap, semantic similarity), and the **drafted proposal** with streaming regeneration, inline editing, and Approve / Reject / Regenerate actions.
+4. **Profile (`/profile`)** — your skills, portfolio links, rate, past work — the text the agent embeds into Chroma and matches against.
+5. **Agent activity (`/activity`)** — live run log: each LangGraph step, tool calls, LangSmith trace links, jobs processed per run.
+6. **Design** — dark, sharp command-center aesthetic (Linear/Vercel feel): dense tables, score badges, monospace accents, semantic status colors.
+7. **Data layer** — typed API client pointing at `VITE_API_URL` (the FastAPI backend); dev-mode simulated stream so the UI demos before the backend is connected.
 
-## Backend blueprint — delivered as a ready-to-run skeleton (`backend/` folder + docs)
+## Backend blueprint — ready-to-run `backend/` skeleton + docs
 
-- **FastAPI**: REST endpoints (index repo, list repos, chat) + SSE streaming for agent runs.
-- **LangChain + LangGraph**: agent graph — query triage → Chroma retrieval tool → file/AST tools → answer composer with citations; human-in-the-loop optional for destructive answers.
-- **Groq**: `llama-3.3-70b-versatile` via `langchain-groq` for reasoning; Groq's speed makes multi-step agent loops feel real-time.
-- **Chroma**: per-repo collections, code-aware chunking (by function/class), embeddings via a free local model (sentence-transformers) so no extra API cost.
-- **Postgres**: repos, conversations, messages, citations.
-- **Redis + Celery (or arq)**: background indexing jobs (clone → chunk → embed).
-- **Docker Compose**: one command spins up api + worker + postgres + redis + chroma.
-- **LangSmith**: tracing on every agent run; eval dataset for answer quality.
-- Requires a free Groq API key (console.groq.com) — user adds it to `.env`.
+- **FastAPI**: REST (jobs, matches, proposals, profile, approve/reject) + SSE for live agent-run streaming.
+- **LangGraph**: scheduled pipeline graph — source scrapers (RSS/JSON APIs of real boards) → dedupe (Postgres unique keys) → chunk+embed into Chroma → semantic match vs profile → Groq fit-scoring with reasoning → proposal drafting (references the client's actual requirements) → human-in-the-loop interrupt awaiting approval.
+- **Groq**: `llama-3.3-70b-versatile` via `langchain-groq` — sub-second scoring/drafting per job.
+- **Chroma**: job embeddings + profile/portfolio embeddings; similarity pre-filter before LLM scoring (cheap + fast).
+- **Postgres**: jobs, matches, proposals, profile, run history.
+- **Redis + arq/celery beat**: scheduled scan every N minutes; bounded batch per run, idempotent dedupe, single-flight lock.
+- **Docker Compose**: api + worker + postgres + redis + chroma in one command.
+- **LangSmith**: tracing every run; eval set for proposal quality.
+- Requires a free Groq API key (console.groq.com) in `.env`.
 
 ## Technical notes
 
-- This workspace builds only the frontend; Python backend is a separate folder/repo you run locally with Docker. The frontend works standalone in demo mode and switches to the real backend via one env var.
+- This workspace builds only the frontend; the Python backend is a separate folder you run locally with Docker. Frontend works standalone in demo mode, switches to the real backend via one env var.
 - Every route gets its own `head()` metadata.
 
 ## Resume framing
 
-"Built RepoPilot: a LangGraph agent that onboards engineers onto any codebase — clones and embeds repos into Chroma (code-aware chunking), answers questions with file/line citations over Groq-hosted Llama 3.3 70B, FastAPI + SSE streaming, Redis job queue, Postgres, Docker Compose, LangSmith tracing/evals, React/TypeScript IDE-style frontend."
+"Built GigRadar: an autonomous LangGraph agent that scans real freelance job boards on a schedule, embeds postings into Chroma, semantically matches them against my profile, scores fit with Groq-hosted Llama 3.3 70B, and drafts personalized proposals with human-in-the-loop approval. FastAPI + SSE, Redis task queue, Postgres, Docker Compose, LangSmith tracing/evals, React/TypeScript command-center dashboard."
