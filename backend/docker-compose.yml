@@ -1,0 +1,29 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    ports: ["8000:8000"]
+    depends_on: [postgres, redis, chroma]
+  worker:
+    build: .
+    env_file: .env
+    command: ["arq", "app.worker.WorkerSettings"]
+    depends_on: [postgres, redis, chroma]
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gigradar
+      POSTGRES_PASSWORD: gigradar
+      POSTGRES_DB: gigradar
+    volumes: [pgdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+  chroma:
+    image: chromadb/chroma:0.5.23
+    volumes: [chromadata:/chroma/chroma]
+    ports: ["8001:8000"]
+volumes:
+  pgdata:
+  chromadata:
