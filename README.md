@@ -1,14 +1,16 @@
-# Welcome to your Lovable project
+# Intelligent Resource Orchestrator
+
+i wanna make a beautiful real world product that ill present on my resume as i wanna become an AI engineer so the tech stack should be langchain langgraph langsmith fastapi docker postgre redis typescript react.i want some 3 top ideas that wouldnt be toy but amazing real world project and i dont want a classifier shit so gimme ideas first
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/57df1a2c-3fb4-4d84-a3a0-3ad7f050a438).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +22,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
